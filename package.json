@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo 'Tests OK'",
+    "test": "node test/index.test.js",
     "build": "echo 'Build OK'"
   },  
   "keywords": [],
