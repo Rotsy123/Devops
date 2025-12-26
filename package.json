@@ -1,0 +1,13 @@
+{
+  "name": "ci_cd",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo 'Tests OK'",
+    "build": "echo 'Build OK'"
+  },  
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": ""
+}
