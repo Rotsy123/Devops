@@ -1,0 +1,30 @@
+name: Mini CI/CD Local
+
+on: [push]
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: 18
+
+    - name: Install dependencies
+      run: npm install
+
+    - name: Run tests (CI)
+      run: npm test
+
+    - name: Build project (CI)
+      run: npm run build
+
+    - name: Deploy locally (CD)
+      run: |
+        mkdir deploy
+        echo "Application deployed" > deploy/status.txt
