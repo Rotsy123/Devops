@@ -1,4 +1,4 @@
-name: Mini CI/CD sans code
+name: CI/CD Pipeline
 
 on: [push]
 
@@ -10,13 +10,25 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Fake test (CI)
-      run: echo "Tests OK"
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
 
-    - name: Fake build (CI)
-      run: echo "Build OK"
+    - name: Install dependencies
+      run: npm install
 
-    - name: Fake deploy (CD)
+    - name: Run tests (CI)
+      run: npm test
+
+    - name: Build (CI)
+      run: npm run build
+
+    - name: Test application
+      run: node index.js
+
+    - name: Deploy (CD)
       run: |
-        mkdir deploy
-        echo "Deployed locally" > deploy/status.txt
+        mkdir -p deploy
+        echo "Deployed successfully" > deploy/status.txt
+        echo "Build date: $(date)" >> deploy/status.txt
