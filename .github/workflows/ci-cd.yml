@@ -1,4 +1,4 @@
-name: Mini CI/CD Local
+name: Mini CI/CD sans code
 
 on: [push]
 
@@ -10,21 +10,13 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Install Node
-      uses: actions/setup-node@v4
-      with:
-        node-version: 18
+    - name: Fake test (CI)
+      run: echo "Tests OK"
 
-    - name: Install dependencies
-      run: npm install
+    - name: Fake build (CI)
+      run: echo "Build OK"
 
-    - name: Run tests (CI)
-      run: npm test
-
-    - name: Build project (CI)
-      run: npm run build
-
-    - name: Deploy locally (CD)
+    - name: Fake deploy (CD)
       run: |
         mkdir deploy
-        echo "Application deployed" > deploy/status.txt
+        echo "Deployed locally" > deploy/status.txt
