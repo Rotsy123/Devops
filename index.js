@@ -12,7 +12,7 @@ function multiplication(a, b) {
 
 module.exports = {
   saluer,
-  addition,
+  addition , 
   multiplication
 };
 
