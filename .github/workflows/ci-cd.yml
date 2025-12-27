@@ -144,6 +144,35 @@ jobs:
       - name: Install Ansible
         run: sudo apt update && sudo apt install -y ansible
 
+      # 🔍 Test de connectivité
+      - name: Test server connectivity
+        run: |
+          DEPLOY_HOST="${{ secrets.DEPLOY_HOST }}"
+          echo "Test de connectivité vers $DEPLOY_HOST..."
+          
+          # Test ping (si autorisé)
+          ping -c 2 -W 2 "$DEPLOY_HOST" 2>&1 || echo "⚠️ Ping échoué (peut être normal si ICMP est bloqué)"
+          
+          # Test de connexion SSH avec timeout
+          timeout 10 bash -c "echo > /dev/tcp/$DEPLOY_HOST/22" 2>/dev/null && {
+            echo "✅ Le port 22 est accessible"
+          } || {
+            echo "❌ Le port 22 n'est pas accessible depuis GitHub Actions"
+            echo ""
+            echo "Causes possibles:"
+            echo "  1. Le serveur est sur un réseau privé (non accessible depuis Internet)"
+            echo "  2. Le firewall bloque les connexions depuis GitHub Actions"
+            echo "  3. Le serveur n'accepte pas les connexions SSH depuis l'extérieur"
+            echo "  4. Le port SSH n'est pas 22"
+            echo ""
+            echo "Solutions:"
+            echo "  - Utiliser un VPN ou un tunnel SSH"
+            echo "  - Configurer un webhook qui déclenche le déploiement depuis le serveur"
+            echo "  - Utiliser un serveur accessible publiquement"
+            echo "  - Configurer un GitHub Self-hosted Runner sur le serveur"
+            exit 1
+          }
+
       # 🚀 Déploiement réel
       - name: Deploy with Ansible
         run: |
@@ -151,5 +180,10 @@ jobs:
             -i "${{ secrets.DEPLOY_HOST }}," \
             -u ${{ secrets.DEPLOY_USER }} \
             --private-key ~/.ssh/id_ed25519 \
-            --ssh-common-args="-o StrictHostKeyChecking=no" \
+            --ssh-common-args="-o StrictHostKeyChecking=no -o ConnectTimeout=30" \
+            --timeout=30 \
+            -v \
             ansible/deploy.yml
+        env:
+          ANSIBLE_HOST_KEY_CHECKING: False
+          ANSIBLE_SSH_TIMEOUT: 30
