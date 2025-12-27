@@ -91,99 +91,70 @@ jobs:
           pkill -f "node server.js" || true
 
   deploy:
-    name: Déploiement (Ansible)
-    runs-on: ubuntu-latest
+    name: Déploiement (Self-hosted Runner)
+    runs-on: self-hosted  # Utilise le runner installé sur le serveur
     needs: [build]
     if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-    # environment: ENV_DEV
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 🔐 Injection sécurisée de la clé SSH
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+          cache: 'npm'
 
-      - name: Validate DEPLOY_HOST format
+      - name: Install dependencies
+        run: npm ci
+
+      # 🚀 Déploiement local (pas besoin de SSH, on est déjà sur le serveur)
+      - name: Deploy application
         run: |
-          echo "DEPLOY_HOST length: ${#DEPLOY_HOST}"
-          if [[ ! "${{ secrets.DEPLOY_HOST }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "❌ DEPLOY_HOST is not a valid IPv4 address"
-            exit 1
+          APP_DIR="${APP_DIR:-/opt/devops-app}"
+          APP_USER="${APP_USER:-$USER}"
+          
+          echo "📦 Déploiement dans $APP_DIR pour l'utilisateur $APP_USER"
+          
+          # Créer le répertoire si nécessaire
+          sudo mkdir -p "$APP_DIR"
+          sudo chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+          
+          # Copier les fichiers
+          echo "📋 Copie des fichiers..."
+          rsync -av --exclude='node_modules' \
+                    --exclude='.git' \
+                    --exclude='.github' \
+                    --exclude='*.log' \
+                    --exclude='.env' \
+                    ./ "$APP_DIR/"
+          
+          # Installer les dépendances
+          echo "📦 Installation des dépendances..."
+          cd "$APP_DIR"
+          npm ci --production
+          
+          # Arrêter l'application existante
+          echo "🛑 Arrêt de l'application existante..."
+          pkill -f "node server.js" || true
+          sleep 2
+          
+          # Démarrer l'application
+          echo "🚀 Démarrage de l'application..."
+          cd "$APP_DIR"
+          nohup node server.js > app.log 2>&1 &
+          echo $! > app.pid
+          
+          # Attendre que l'application démarre
+          sleep 3
+          
+          # Vérifier que l'application fonctionne
+          if curl -f http://localhost:3000 > /dev/null 2>&1; then
+            echo "✅ Application démarrée avec succès"
           else
-            echo "✅ DEPLOY_HOST looks valid"
+            echo "⚠️ L'application peut ne pas être démarrée correctement"
+            echo "Vérifiez les logs: tail -f $APP_DIR/app.log"
           fi
           
-      - name: Setup SSH
-        run: |
-          mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          
-          # Vérifier que la clé a été écrite
-          if [ ! -s ~/.ssh/id_ed25519 ]; then
-            echo "❌ La clé SSH n'a pas été écrite correctement"
-            exit 1
-          fi
-          echo "✅ Clé SSH écrite avec succès"
-          
-          # Créer known_hosts s'il n'existe pas
-          touch ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-          
-          # Essayer d'ajouter le host (non bloquant - on utilisera StrictHostKeyChecking=no)
-          DEPLOY_HOST="${{ secrets.DEPLOY_HOST }}"
-          echo "Tentative d'ajout de $DEPLOY_HOST aux known_hosts..."
-          ssh-keyscan -H -p 22 "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>&1 || {
-            echo "⚠️ ssh-keyscan a échoué (le serveur peut ne pas être accessible depuis GitHub Actions)"
-            echo "⚠️ On continuera avec StrictHostKeyChecking=no lors de la connexion SSH"
-          }
-          
-          echo "✅ Configuration SSH terminée"
-
-      # 🧠 Installation Ansible
-      - name: Install Ansible
-        run: sudo apt update && sudo apt install -y ansible
-
-      # 🔍 Test de connectivité
-      - name: Test server connectivity
-        run: |
-          DEPLOY_HOST="${{ secrets.DEPLOY_HOST }}"
-          echo "Test de connectivité vers $DEPLOY_HOST..."
-          
-          # Test ping (si autorisé)
-          ping -c 2 -W 2 "$DEPLOY_HOST" 2>&1 || echo "⚠️ Ping échoué (peut être normal si ICMP est bloqué)"
-          
-          # Test de connexion SSH avec timeout
-          timeout 10 bash -c "echo > /dev/tcp/$DEPLOY_HOST/22" 2>/dev/null && {
-            echo "✅ Le port 22 est accessible"
-          } || {
-            echo "❌ Le port 22 n'est pas accessible depuis GitHub Actions"
-            echo ""
-            echo "Causes possibles:"
-            echo "  1. Le serveur est sur un réseau privé (non accessible depuis Internet)"
-            echo "  2. Le firewall bloque les connexions depuis GitHub Actions"
-            echo "  3. Le serveur n'accepte pas les connexions SSH depuis l'extérieur"
-            echo "  4. Le port SSH n'est pas 22"
-            echo ""
-            echo "Solutions:"
-            echo "  - Utiliser un VPN ou un tunnel SSH"
-            echo "  - Configurer un webhook qui déclenche le déploiement depuis le serveur"
-            echo "  - Utiliser un serveur accessible publiquement"
-            echo "  - Configurer un GitHub Self-hosted Runner sur le serveur"
-            exit 1
-          }
-
-      # 🚀 Déploiement réel
-      - name: Deploy with Ansible
-        run: |
-          ansible-playbook \
-            -i "${{ secrets.DEPLOY_HOST }}," \
-            -u ${{ secrets.DEPLOY_USER }} \
-            --private-key ~/.ssh/id_ed25519 \
-            --ssh-common-args="-o StrictHostKeyChecking=no -o ConnectTimeout=30" \
-            --timeout=30 \
-            -v \
-            ansible/deploy.yml
-        env:
-          ANSIBLE_HOST_KEY_CHECKING: False
-          ANSIBLE_SSH_TIMEOUT: 30
+          echo "✅ Déploiement terminé"
