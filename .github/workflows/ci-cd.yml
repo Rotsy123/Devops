@@ -112,14 +112,14 @@ jobs:
       # 🚀 Déploiement local (pas besoin de SSH, on est déjà sur le serveur)
       - name: Deploy application
         run: |
-          APP_DIR="${APP_DIR:-/opt/devops-app}"
-          APP_USER="${APP_USER:-$USER}"
+          # Utiliser un répertoire dans le home de l'utilisateur (pas besoin de sudo)
+          APP_DIR="${HOME}/devops-app"
+          APP_USER="$USER"
           
           echo "📦 Déploiement dans $APP_DIR pour l'utilisateur $APP_USER"
           
-          # Créer le répertoire si nécessaire
-          sudo mkdir -p "$APP_DIR"
-          sudo chown -R "$APP_USER:$APP_USER" "$APP_DIR"
+          # Créer le répertoire si nécessaire (pas besoin de sudo)
+          mkdir -p "$APP_DIR"
           
           # Copier les fichiers
           echo "📋 Copie des fichiers..."
@@ -128,6 +128,7 @@ jobs:
                     --exclude='.github' \
                     --exclude='*.log' \
                     --exclude='.env' \
+                    --exclude='actions-runner' \
                     ./ "$APP_DIR/"
           
           # Installer les dépendances
@@ -152,9 +153,12 @@ jobs:
           # Vérifier que l'application fonctionne
           if curl -f http://localhost:3000 > /dev/null 2>&1; then
             echo "✅ Application démarrée avec succès"
+            echo "🌐 Application accessible sur: http://localhost:3000"
           else
             echo "⚠️ L'application peut ne pas être démarrée correctement"
             echo "Vérifiez les logs: tail -f $APP_DIR/app.log"
+            echo "Vérifiez si le processus tourne: ps aux | grep 'node server.js'"
           fi
           
           echo "✅ Déploiement terminé"
+          echo "📁 Application déployée dans: $APP_DIR"
