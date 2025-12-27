@@ -13,7 +13,7 @@ function runTest(testName, testFunction) {
     console.log(`✅ ${testName}`);
   } catch (error) {
     testsFailed++;
-    console.error(`❌ ${testName}`);
+    console.error(`❌  ${testName}`);
     console.error(`   Erreur: ${error.message}`);
   }
 }
