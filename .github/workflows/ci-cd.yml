@@ -102,6 +102,17 @@ jobs:
         uses: actions/checkout@v3
 
       # 🔐 Injection sécurisée de la clé SSH
+
+      - name: Validate DEPLOY_HOST format
+  run: |
+    echo "DEPLOY_HOST length: ${#DEPLOY_HOST}"
+    if [[ ! "${{ secrets.DEPLOY_HOST }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "❌ DEPLOY_HOST is not a valid IPv4 address"
+      exit 1
+    else
+      echo "✅ DEPLOY_HOST looks valid"
+    fi
+    
       - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
