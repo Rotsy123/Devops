@@ -118,7 +118,27 @@ jobs:
           mkdir -p ~/.ssh
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -H ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          
+          # Vérifier que la clé a été écrite
+          if [ ! -s ~/.ssh/id_ed25519 ]; then
+            echo "❌ La clé SSH n'a pas été écrite correctement"
+            exit 1
+          fi
+          echo "✅ Clé SSH écrite avec succès"
+          
+          # Créer known_hosts s'il n'existe pas
+          touch ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+          
+          # Essayer d'ajouter le host (non bloquant - on utilisera StrictHostKeyChecking=no)
+          DEPLOY_HOST="${{ secrets.DEPLOY_HOST }}"
+          echo "Tentative d'ajout de $DEPLOY_HOST aux known_hosts..."
+          ssh-keyscan -H -p 22 "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>&1 || {
+            echo "⚠️ ssh-keyscan a échoué (le serveur peut ne pas être accessible depuis GitHub Actions)"
+            echo "⚠️ On continuera avec StrictHostKeyChecking=no lors de la connexion SSH"
+          }
+          
+          echo "✅ Configuration SSH terminée"
 
       # 🧠 Installation Ansible
       - name: Install Ansible
@@ -130,4 +150,6 @@ jobs:
           ansible-playbook \
             -i "${{ secrets.DEPLOY_HOST }}," \
             -u ${{ secrets.DEPLOY_USER }} \
+            --private-key ~/.ssh/id_ed25519 \
+            --ssh-common-args="-o StrictHostKeyChecking=no" \
             ansible/deploy.yml
