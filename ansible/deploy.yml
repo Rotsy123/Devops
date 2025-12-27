@@ -1,0 +1,34 @@
+- name: Deploy Node app on local server
+  hosts: all
+  become: true
+
+  vars:
+    app_dir: /opt/devops-app
+
+  tasks:
+    - name: Create application directory
+      file:
+        path: "{{ app_dir }}"
+        state: directory
+        owner: tsiky
+        group: tsiky
+        mode: '0755'
+
+    - name: Copy application files
+      copy:
+        src: "{{ playbook_dir }}/../"
+        dest: "{{ app_dir }}"
+        owner: tsiky
+        group: tsiky
+
+    - name: Install dependencies
+      command: npm install
+      args:
+        chdir: "{{ app_dir }}"
+
+    - name: Restart application
+      shell: |
+        pkill node || true
+        nohup node index.js > app.log 2>&1 &
+      args:
+        chdir: "{{ app_dir }}"

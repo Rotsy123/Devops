@@ -3,9 +3,17 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "node test/index.test.js",
-    "build": "echo 'Build OK'"
-  },  
+    "test": "node test/server.test.js",
+    "test:server": "node test/server.test.js",
+    "test:all": "node test/index.test.js && node test/server.test.js",
+    "build": "echo 'Build OK' && node -c server.js && node -c index.js",
+    "start": "node server.js",
+    "dev": "node server.js",
+    "lint": "node -c server.js && node -c index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",
