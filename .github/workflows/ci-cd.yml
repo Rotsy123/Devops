@@ -112,53 +112,42 @@ jobs:
       # 🚀 Déploiement local (pas besoin de SSH, on est déjà sur le serveur)
       - name: Deploy application
         run: |
-          # Utiliser un répertoire dans le home de l'utilisateur (pas besoin de sudo)
           APP_DIR="${HOME}/devops-app"
-          APP_USER="$USER"
-          
-          echo "📦 Déploiement dans $APP_DIR pour l'utilisateur $APP_USER"
-          
-          # Créer le répertoire si nécessaire (pas besoin de sudo)
+
+          echo "📦 Déploiement dans $APP_DIR"
+
           mkdir -p "$APP_DIR"
-          
-          # Copier les fichiers
-          echo "📋 Copie des fichiers..."
-          rsync -av --exclude='node_modules' \
-                    --exclude='.git' \
-                    --exclude='.github' \
-                    --exclude='*.log' \
-                    --exclude='.env' \
-                    --exclude='actions-runner' \
-                    ./ "$APP_DIR/"
-          
-          # Installer les dépendances
-          echo "📦 Installation des dépendances..."
+
+          rsync -av \
+            --exclude='node_modules' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='*.log' \
+            --exclude='.env' \
+            --exclude='actions-runner' \
+            ./ "$APP_DIR/"
+
           cd "$APP_DIR"
-          npm ci --production
-          
-          # Arrêter l'application existante
+
+          echo "📦 Installation des dépendances..."
+          npm ci --omit=dev
+
           echo "🛑 Arrêt de l'application existante..."
           pkill -f "node server.js" || true
           sleep 2
-          
-          # Démarrer l'application
+
           echo "🚀 Démarrage de l'application..."
-          cd "$APP_DIR"
-          nohup node server.js > app.log 2>&1 &
+          RUNNER_TRACKING_ID="" nohup node server.js > app.log 2>&1 &
           echo $! > app.pid
-          
-          # Attendre que l'application démarre
-          sleep 3
-          
-          # Vérifier que l'application fonctionne
+
+          sleep 4
+
           if curl -f http://localhost:3000 > /dev/null 2>&1; then
             echo "✅ Application démarrée avec succès"
-            echo "🌐 Application accessible sur: http://localhost:3000"
           else
-            echo "⚠️ L'application peut ne pas être démarrée correctement"
-            echo "Vérifiez les logs: tail -f $APP_DIR/app.log"
-            echo "Vérifiez si le processus tourne: ps aux | grep 'node server.js'"
+            echo "❌ Échec du démarrage"
+            tail -n 100 "$APP_DIR/app.log" || true
+            exit 1
           fi
-          
           echo "✅ Déploiement terminé"
           echo "📁 Application déployée dans: $APP_DIR"
